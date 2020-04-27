@@ -7,7 +7,7 @@ def save_to_jsonfile(filename, graph):
     json.dump(g_json, open(filename, 'w'))
     
 def zeroToOne(graph):
-    '''Assumes binary values'''
+    """Assumes binary values"""
     zeros = 0
     ones = 0
     for n in graph.nodes():
