@@ -3,6 +3,7 @@
 import networkx as nx
 import random
 from scipy import stats
+from network_data import *
 import numpy
 
 
@@ -64,14 +65,6 @@ def human_social_network_mutual_iterations(grid, iterations):
         G.add_edge(n, a)
         i += 1
 
-    curr_geodesic = nx.average_shortest_path_length(G)
-    curr_clustering = nx.average_clustering(G)
-    degrees = [G.degree(n) for n in G.nodes]
-    curr_skew_degree = stats.skew(degrees)
-
-    print("Geodesic: " + str(curr_geodesic) + "; Clustering: " + str(curr_clustering) + "; Skew: " + str(
-    curr_skew_degree))
-
     return G
 
 def human_social_network_pop_iterations(grid, iterations, distance):
@@ -122,14 +115,6 @@ def human_social_network_pop_iterations(grid, iterations, distance):
             a = random.choice(optns)
             G.add_edge(n, a)
         i += 1
-
-    curr_geodesic = nx.average_shortest_path_length(G)
-    curr_clustering = nx.average_clustering(G)
-    degrees = [G.degree(n) for n in G.nodes]
-    curr_skew_degree = stats.skew(degrees)
-
-    print("Geodesic: " + str(curr_geodesic) + "; Clustering: " + str(curr_clustering) + "; Skew: " + str(
-    curr_skew_degree))
 
     return G
 
@@ -203,14 +188,6 @@ def human_social_network_mutual_pop_iterations(grid, iterations, distance):
         G.add_edge(n, a)
         i += 1
 
-    curr_geodesic = nx.average_shortest_path_length(G)
-    curr_clustering = nx.average_clustering(G)
-    degrees = [G.degree(n) for n in G.nodes]
-    curr_skew_degree = stats.skew(degrees)
-
-    print("Geodesic: " + str(curr_geodesic) + "; Clustering: " + str(curr_clustering) + "; Skew: " + str(
-    curr_skew_degree))
-
     return G
 
 def human_social_network_prestige_fixed_flat_iterations(grid, iterations, pres_percent):
@@ -279,14 +256,6 @@ def human_social_network_prestige_fixed_flat_iterations(grid, iterations, pres_p
 
         G.add_edge(n, a)
         i += 1
-
-    curr_geodesic = nx.average_shortest_path_length(G)
-    curr_clustering = nx.average_clustering(G)
-    degrees = [G.degree(n) for n in G.nodes]
-    curr_skew_degree = stats.skew(degrees)
-
-    print("Geodesic: " + str(curr_geodesic) + "; Clustering: " + str(curr_clustering) + "; Skew: " + str(
-    curr_skew_degree))
 
     return G
 
@@ -386,20 +355,18 @@ def human_social_network_prestige_fixed_flat_ext_iterations(grid, iterations, pr
             G.add_edge(n, a)
             i += 1
 
-    curr_geodesic = nx.average_shortest_path_length(G)
-    curr_clustering = nx.average_clustering(G)
-    degrees = [G.degree(n) for n in G.nodes]
-    curr_skew_degree = stats.skew(degrees)
-
-    print("Geodesic: " + str(curr_geodesic) + "; Clustering: " + str(curr_clustering) + "; Skew: " + str(
-    curr_skew_degree))
-
     return G
 
-G = human_social_network_mutual_iterations((30, 30), 7000)
-H = human_social_network_pop_iterations((30, 30), 3000, 3)
-I = human_social_network_pop_iterations((30, 30), 6000, 2)
-J = human_social_network_mutual_pop_iterations((30, 30), 7000, 4)
-K = human_social_network_prestige_fixed_flat_iterations((30, 30), 2000, 0.05)
-beta_params = [[4, 4], [2.5, 3.5], [3.5, 2.5]]
-L = human_social_network_prestige_fixed_flat_ext_iterations((30, 30), 2000, 0.05, numpy.random.beta, *beta_params[0])
+if __name__ == '__main__':
+    # Example Networks
+
+    # G = human_social_network_mutual_iterations((30, 30), 7000)
+    # H = human_social_network_pop_iterations((30, 30), 3000, 3)
+    # I = human_social_network_pop_iterations((30, 30), 6000, 2)
+    # J = human_social_network_mutual_pop_iterations((30, 30), 7000, 4)
+    K = human_social_network_prestige_fixed_flat_iterations((15, 15), 250, 0.05)
+    # beta_params = [[4, 4], [2.5, 3.5], [3.5, 2.5]]
+    # L = human_social_network_prestige_fixed_flat_ext_iterations((30, 30), 2000, 0.05, numpy.random.beta, *beta_params[0])
+
+    degree_distribution_plot(K)
+    statistics(K)

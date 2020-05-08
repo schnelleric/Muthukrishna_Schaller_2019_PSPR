@@ -57,7 +57,7 @@ def _run_sim(G, locations, grid):
     """
     overlaps = {}
     for person in range(0, len(G.nodes())):
-        if random.random() < G.node[person]['extraversion']:
+        if random.random() < nx.get_node_attributes(G, 'extraversion')[person]:
             current_location = locations[person]
             new_location = _migrate(current_location, grid, True)
             if new_location in overlaps:
