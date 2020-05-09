@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import collections
 import networkx as nx
 from scipy import stats
+import numpy
 
 def degree_distribution_plot(G):
     """
@@ -17,8 +18,7 @@ def degree_distribution_plot(G):
 
     Notes
     -----
-    Currently there exists an issue where if the fraction of nodes with a given degree is too small it is omitted from
-    the plot.
+    Values on axes are predetermined and may not be optimal for a given graph.
     """
 
     # Adapted from https://networkx.github.io/documentation/stable/auto_examples/drawing/plot_degree_histogram.html
@@ -33,11 +33,13 @@ def degree_distribution_plot(G):
 
     plt.title("Degree Distribution")
     plt.ylabel("Fraction")
-    # Have issue where if a fraction is too close to zero it will not appear on the plot
     plt.yscale("log")
-    # Need to ensure only uses whole numbers on the x axis
+    y_ticks = [1, 0.1, 0.01, 0.001, 0.0001]
+    plt.yticks(y_ticks, y_ticks)
     plt.xlabel("Degree")
-    plt.xscale("linear")
+    plt.xscale("log")
+    x_ticks = [3, 30, 300]
+    plt.xticks(x_ticks, x_ticks)
 
     plt.show()
 
@@ -54,8 +56,7 @@ def statistics(G):
 
     Notes
     -----
-    I believe the KS test is working correctly however there are currently no networks that pass it so it is unclear if
-    it is actually working.
+    I believe KS test is correct but unsure. Should double check.
     """
 
     curr_geodesic = nx.average_shortest_path_length(G)
@@ -69,8 +70,9 @@ def statistics(G):
     best_alpha = None
     best_ks = None
     best_p = None
+    s = max(degrees) + 1
     for a in alphas:
-        ks, p = stats.kstest(rvs=degrees, cdf='powerlaw', args=(a,))
+        ks, p = stats.kstest(rvs=degrees, cdf='powerlaw', args=(a,3,s))
         if best_p == None or p > best_p:
             best_alpha, best_ks, best_p = a, ks, p
 
