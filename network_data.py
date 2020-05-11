@@ -4,7 +4,8 @@ import matplotlib.pyplot as plt
 import collections
 import networkx as nx
 from scipy import stats
-import numpy
+import random
+import numpy as np
 
 def degree_distribution_plot(G):
     """
@@ -29,6 +30,7 @@ def degree_distribution_plot(G):
     for i in range(len(cnt)):
         cnt_frac.append(cnt[i] / G.number_of_nodes())
 
+    # plt.scatter(deg, cnt, s=10)
     plt.scatter(deg, cnt_frac, s=10)
 
     plt.title("Degree Distribution")
@@ -41,7 +43,7 @@ def degree_distribution_plot(G):
     x_ticks = [3, 30, 300]
     plt.xticks(x_ticks, x_ticks)
 
-    plt.show()
+    plt.show(block=False)
 
 def statistics(G):
     """
@@ -56,27 +58,17 @@ def statistics(G):
 
     Notes
     -----
-    I believe KS test is correct but unsure. Should double check.
+    KS test not working
     """
 
     curr_geodesic = nx.average_shortest_path_length(G)
     curr_clustering = nx.average_clustering(G)
+
     degrees = [G.degree(n) for n in G.nodes]
-    alphas = []
-    alpha = 0.1
-    while alpha < 5:
-        alphas.append(round(alpha, 1))
-        alpha += 0.1
-    best_alpha = None
-    best_ks = None
-    best_p = None
-    s = max(degrees) + 1
-    for a in alphas:
-        ks, p = stats.kstest(rvs=degrees, cdf='powerlaw', args=(a,3,s))
-        if best_p == None or p > best_p:
-            best_alpha, best_ks, best_p = a, ks, p
+    a, l, s = stats.powerlaw.fit(degrees)
+    ks, p = stats.kstest(rvs=degrees, cdf='powerlaw', args=(a,l,s))
 
     print("Geodesic: " + str(curr_geodesic) + "; Clustering: " + str(curr_clustering) +
-          "; Degree Distribution: alpha = " + str(best_alpha) + ", KS = " + str(best_ks) + ", p = " + str(best_p))
+          "; Degree Distribution: alpha = " + str(a) + ", KS = " + str(ks) + ", p = " + str(p))
 
-    return (curr_geodesic, curr_clustering, best_alpha, best_ks, best_p)
+    return (curr_geodesic, curr_clustering, a, ks, p)
