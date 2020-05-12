@@ -3,9 +3,8 @@
 import matplotlib.pyplot as plt
 import collections
 import networkx as nx
-from scipy import stats
-import random
 import numpy as np
+import plfit
 
 def degree_distribution_plot(G):
     """
@@ -30,7 +29,6 @@ def degree_distribution_plot(G):
     for i in range(len(cnt)):
         cnt_frac.append(cnt[i] / G.number_of_nodes())
 
-    # plt.scatter(deg, cnt, s=10)
     plt.scatter(deg, cnt_frac, s=10)
 
     plt.title("Degree Distribution")
@@ -58,17 +56,19 @@ def statistics(G):
 
     Notes
     -----
-    KS test not working
+    KS test from plfit.py package implementing algorithm for mapping data to a power-law distribution from Clauset et
+    al. (2009).
     """
 
     curr_geodesic = nx.average_shortest_path_length(G)
     curr_clustering = nx.average_clustering(G)
 
     degrees = [G.degree(n) for n in G.nodes]
-    a, l, s = stats.powerlaw.fit(degrees)
-    ks, p = stats.kstest(rvs=degrees, cdf='powerlaw', args=(a,l,s))
+    est = plfit.plfit(x=degrees, discrete=True, nosmall=False)
+    a = est._alpha
+    p, k = est.test_pl()
 
     print("Geodesic: " + str(curr_geodesic) + "; Clustering: " + str(curr_clustering) +
-          "; Degree Distribution: alpha = " + str(a) + ", KS = " + str(ks) + ", p = " + str(p))
+          "; Degree Distribution: alpha = " + str(a) + ", KS = " + str(np.mean(k)) + ", p = " + str(p))
 
-    return (curr_geodesic, curr_clustering, a, ks, p)
+    return (curr_geodesic, curr_clustering, a, k, p)

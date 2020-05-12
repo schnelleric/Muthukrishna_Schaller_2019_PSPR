@@ -366,15 +366,15 @@ if __name__ == '__main__':
     # H = human_social_network_pop_iterations((30, 30), 3000, 3)
     # I = human_social_network_pop_iterations((30, 30), 6000, 2)
     # J = human_social_network_mutual_pop_iterations((30, 30), 7000, 4)
-    K = human_social_network_prestige_fixed_flat_iterations((30, 30), 1750, 0.05)
-    beta_params = [[4, 4], [2.5, 3.5], [3.5, 2.5]]
-    L = human_social_network_prestige_fixed_flat_ext_iterations((30, 30), 1750, 0.05, numpy.random.beta, *beta_params[0])
-    M = human_social_network_iterations((30, 30), 50, False, random.betavariate, *beta_params[0])
+    K = human_social_network_prestige_fixed_flat_iterations((15, 15), 200, 0.1)
+    # beta_params = [[4, 4], [2.5, 3.5], [3.5, 2.5]]
+    # L = human_social_network_prestige_fixed_flat_ext_iterations((30, 30), 1750, 0.05, numpy.random.beta, *beta_params[0])
+    # M = human_social_network_iterations((30, 30), 50, False, random.betavariate, *beta_params[0])
 
     degree_distribution_plot(K)
     statistics(K)
-    degree_distribution_plot(L)
-    statistics(L)
-    degree_distribution_plot(M)
-    statistics(M)
+    # degree_distribution_plot(L)
+    # statistics(L)
+    # degree_distribution_plot(M)
+    # statistics(M)
     plt.show()
