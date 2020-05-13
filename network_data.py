@@ -3,8 +3,7 @@
 import matplotlib.pyplot as plt
 import collections
 import networkx as nx
-import numpy as np
-import plfit
+import scipy.stats as stats
 
 def degree_distribution_plot(G):
     """
@@ -64,11 +63,13 @@ def statistics(G):
     curr_clustering = nx.average_clustering(G)
 
     degrees = [G.degree(n) for n in G.nodes]
-    est = plfit.plfit(x=degrees, discrete=True, nosmall=False)
-    a = est._alpha
-    p, k = est.test_pl()
+
+    a, l, s = stats.powerlaw.fit(degrees)
+
+    ks, p = stats.kstest(degrees, "powerlaw", args=(a, l, s))
+
 
     print("Geodesic: " + str(curr_geodesic) + "; Clustering: " + str(curr_clustering) +
-          "; Degree Distribution: alpha = " + str(a) + ", KS = " + str(np.mean(k)) + ", p = " + str(p))
+          "; Degree Distribution: alpha = " + str(a) + ", KS = " + str(ks) + ", p = " + str(p))
 
-    return (curr_geodesic, curr_clustering, a, k, p)
+    return (curr_geodesic, curr_clustering, a, ks, p)
