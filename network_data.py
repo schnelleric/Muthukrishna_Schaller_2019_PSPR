@@ -8,7 +8,7 @@ import scipy.stats as stats
 def degree_distribution_plot(G):
     """
     Makes a plot for the degree distribution of the inputted graph where the y axis corresponds to the fraction of nodes
-    in the graph and the x axis corresponds to the degree of a node. The y axis uses a logarithmic scale.
+    in the graph and the x axis corresponds to the degree of a node. Both axes uses a logarithmic scale.
 
     Parameters
     ----------
@@ -42,7 +42,7 @@ def degree_distribution_plot(G):
 
     plt.show(block=False)
 
-def statistics(G):
+def graph_statistics(G):
     """
     Prints the characteristic path length (geodesic) of the inputted network, the clustering coefficient of the inputted
     network, and Kolmogorov-Smirnov test results for the similarity of the degree distribution with a power law
@@ -55,8 +55,7 @@ def statistics(G):
 
     Notes
     -----
-    KS test from plfit.py package implementing algorithm for mapping data to a power-law distribution from Clauset et
-    al. (2009).
+    KS test currently not working properly.
     """
 
     curr_geodesic = nx.average_shortest_path_length(G)
@@ -64,6 +63,7 @@ def statistics(G):
 
     degrees = [G.degree(n) for n in G.nodes]
 
+    # Does not seem to properly fit to powerlaw
     a, l, s = stats.powerlaw.fit(degrees)
 
     ks, p = stats.kstest(degrees, "powerlaw", args=(a, l, s))
