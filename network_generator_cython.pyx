@@ -1,14 +1,11 @@
-#!/usr/bin/env python3
+#!python
+#cython: language_level=3
 
+import math
 import networkx as nx
 import random
-from network_data import *
-import math
-import statistics
-import cProfile
-import time
 
-def human_social_network_prestige(grid, geodesic):
+def human_social_network_prestige_cython((int, int) grid, float geodesic):
     """
     Returns a network that mimics human social networks where people try to connect to those who have more important
     connections, as calculated using eigenvector centrality. Connections are only possible between nodes a distance of
@@ -31,6 +28,12 @@ def human_social_network_prestige(grid, geodesic):
     At each iteration one node is selected at random to receive a new edge with a node within a distance of k to them.
     The node is more likely to connect to a node with many important connections and that is nearby.
     """
+    cdef int j, r
+    cdef float dist, w
+    cdef object G, n, nbr, a
+    cdef list nbrs, nodes, odds
+    cdef dict centrality
+
     # Set up the graph with connections between neighbors
     G = nx.grid_2d_graph(grid[0], grid[1], True)
     G = nx.convert_node_labels_to_integers(G)
@@ -58,14 +61,7 @@ def human_social_network_prestige(grid, geodesic):
                     odds.append(w)
 
             # Select at random a new connection for n from the list of options given the assigned odds
-            a = random.choices(nodes, weights=odds, k=1)[0]
+            a = random.choices(nodes, cum_weights=odds, k=1)[0]
             G.add_edge(n, a)
 
     return G
-
-if __name__ == '__main__':
-    # Example Networks
-
-    start = time.time()
-    human_social_network_prestige((15, 15), 3.4)
-    print("Time of normal implementation: {}".format(time.time() - start))
