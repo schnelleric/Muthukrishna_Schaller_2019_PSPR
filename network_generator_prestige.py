@@ -4,8 +4,6 @@ import networkx as nx
 import random
 from network_data import *
 import math
-import statistics
-import cProfile
 import time
 
 def human_social_network_prestige(grid, geodesic):
