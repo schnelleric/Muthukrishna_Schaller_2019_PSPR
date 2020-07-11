@@ -1,6 +1,8 @@
 import random
 import networkx as nx
 import math
+import matplotlib.pyplot as plt
+import stats
 
 def human_social_network_mutual_iterations(grid, iterations):
     """
@@ -813,4 +815,519 @@ def human_social_network_prestige_types(grid, geodesic, decay_type, alpha, beta)
             # Select at random a new connection for n from the list of options given the assigned odds
             a = random.choices(nodes, weights=odds, k=1)[0]
             G.add_edge(n, a)
+    return G
+
+def network_equilibrium_mult(G, initial_nbrs, p2, val, iterations):
+    """
+    Given a graph that has properties of human social networks. Continue to apply processes based on prestige, as well
+    as an analogue to individuals dying, maintaining the networks human features.
+
+    Parameters
+    ----------
+    G : Graph
+        Inputted graph of already desired parameters
+    p : float
+        Probability of a node losing most of its edges at a given iteration
+    iterations : int
+        Number of iterations to apply equilibrium algorithm
+
+    Notes
+    -----
+    The algorithm works by taking a graph and at each iteration adding an edge between nodes based on prestige
+    mechanics. At every iteration there is also a chance that one node gets all but its initial four edges (to its left,
+    right, up, and down) removed.
+    """
+    nodes = list(G.nodes)
+
+    percent_cut = []
+    tot_edges = []
+    odds_on_cuts = []
+
+    i_vals = []
+    geos = []
+    count_add_e = 0
+    count_remove_n = 0
+    clustering = []
+
+    prev_geo = None
+    movement_avg = []
+
+    for i in range(iterations):
+        count_add_e += 1
+        if (i % 500) == 0:
+            print(i)
+            i_vals.append(i)
+            geo = nx.average_shortest_path_length(G)
+            geos.append(geo)
+            clust = nx.average_clustering(G)
+            clustering.append(clust)
+            if prev_geo:
+                # if geo <= prev_geo:
+                #     drops.append(prev_geo - geo)
+                # else:
+                #     rises.append(geo - prev_geo)
+                #     num_rises += 1
+                movement_avg.append(geo - prev_geo)
+            prev_geo = geo
+
+        # Select random person
+        n = random.choice(nodes)
+        odds = []
+        centrality = nx.eigenvector_centrality_numpy(G)
+        nbrs = [nbr for nbr in G[n]]
+        nbrs.append(n)
+
+        for optn in nodes:
+            if optn in nbrs:
+                odds.append(0)
+            else:
+                dist = nx.shortest_path_length(G, n, optn)
+                # Set the odds of being connected to based on eigenvector centrality of the option and its
+                # distance from n
+                w = centrality[optn] * math.exp(-2*dist)
+                odds.append(w)
+
+        # Select at random a new connection for n from the list of options given the assigned odds
+        a = random.choices(nodes, weights=odds, k=1)[0]
+        G.add_edge(n, a)
+
+        if random.random() < p2:
+            count_remove_n += 1
+            rmv = random.choice(nodes)
+            nbrs = [nbr for nbr in G[rmv]]
+            num_nbrs = len(nbrs)
+            to_add = []
+
+            for nbr in nbrs:
+                # if nbr in initial_nbrs[rmv]:
+                #     to_add.append(nbr)
+                # else:
+                mutuals = list(nx.common_neighbors(G, rmv, nbr))
+                odd = ((len(mutuals) + 1) / num_nbrs)
+                if random.random() < odd:
+                    to_add.append(nbr)
+                    odds_on_cuts.append(odd)
+
+            G.remove_node(rmv)
+            G.add_node(rmv)
+
+            percent_cut.append((num_nbrs - len(to_add))/num_nbrs)
+            tot_edges.append(num_nbrs)
+
+            for choice in to_add:
+                G.add_edge(rmv, choice)
+
+            while nx.is_connected(G) == False:
+                added = 0
+                smallest_chunk = None
+                smallest_value = None
+                for chunk in list(nx.connected_components(G)):
+                    if smallest_value == None or len(chunk) < smallest_value:
+                        smallest_value = len(chunk)
+                        smallest_chunk = chunk
+                el = random.choice(list(smallest_chunk))
+                el_nbrs = [nbr for nbr in G[el]]
+                unconnected_original = []
+                for or_nbr in initial_nbrs[el]:
+                    if or_nbr not in el_nbrs:
+                        unconnected_original.append(or_nbr)
+                while unconnected_original != [] and added != val:
+                    added += 1
+                    next = random.choice(unconnected_original)
+                    unconnected_original.remove(next)
+                    G.add_edge(el, next)
+                    count_add_e += 1
+
+                # places_to_connect = []
+                # for chunk in list(nx.connected_components(G)):
+                #     el = random.choice(list(chunk))
+                #     places_to_connect.append(el)
+                # edges = itertools.combinations(places_to_connect, 2)
+                # G.add_edges_from(edges)
+
+    i_vals.append(iterations)
+    geos.append(nx.average_shortest_path_length(G))
+    clustering.append(nx.average_clustering(G))
+
+    cuts = int(round(stats.mean(percent_cut), 2) * 100)
+    num_nodes = int(math.sqrt(G.number_of_nodes()))
+    ratio = round((count_add_e / count_remove_n), 2)
+    # rise_avg = round(stats.mean(rises), 2)
+    # drop_avg = round(stats.mean(drops), 2)
+    movement = round(stats.mean(movement_avg), 2)
+    movement_skip_five = round(stats.mean(movement_avg[5:]), 2)
+    geo_avg = round(stats.mean(geos), 2)
+    geo_avg_skip_five = round(stats.mean(geos[5:]), 2)
+    clustering_avg = round(stats.mean(clustering), 2)
+    clustering_avg_skip_five = round(stats.mean(clustering[5:]), 2)
+
+    # print("Inputted Geodesic: {}; Outputted Geodesic: {}".format(initial_geodesic, final_geodesic))
+    # print("Geodesic Difference: {}".format(final_geodesic - initial_geodesic))
+    # print("Inputted Clustering: {}; Outputted Clustering: {}".format(initial_clustering, final_clustering))
+    # print("Clustering Difference: {}".format(final_clustering - initial_clustering))
+    print("Average clustering coefficient: {}".format(clustering_avg))
+    print("Average clustering coefficient ignoring first 5 data points: {}".format(clustering_avg_skip_five))
+    print("Removed on average {}% of edges".format(cuts))
+    # print("Started with {} edges, added {} edges, removed {} nodes".format(num_edges0, count_add_e, count_remove_n))
+    print("Removed 1 node for every {} edges added".format(ratio))
+    print("On average geodesic moves by {}".format(movement))
+    print("If we ignore the first 5 data point, on average geodesic moves by {}".format(movement_skip_five))
+    print("Average geodesic: {}".format(geo_avg))
+    print("Average geodesic ignoring first 5 data points: {}".format(geo_avg_skip_five))
+
+    plt.scatter(i_vals, geos, s=10)
+    plt.title("Geodesic Equilibrium")
+    plt.xlabel("# of Iterations")
+    plt.ylabel("Average Geodesic")
+    plt.axhline(3.4, c='black', lw=1)
+    plt.savefig(r'C:\Users\Eric\Desktop\Equilibrium Graphs\Important\Geo connect {} {} iterations with p of {} {}x{}.png'.format(val, iterations, p2, num_nodes, num_nodes))
+    plt.close()
+
+    plt.scatter(i_vals, clustering, s=10)
+    plt.title("Clustering Equilibrium")
+    plt.xlabel("# of Iterations")
+    plt.ylabel("Clustering Coefficient")
+    plt.yticks([0, 0.2, 0.4, 0.6, 0.8, 1])
+    plt.axhline(0.1, c='black', lw=1)
+    plt.savefig(r'C:\Users\Eric\Desktop\Equilibrium Graphs\Important\Clust connect {} {} iterations with p of {} {}x{}.png'.format(val, iterations, p2, num_nodes, num_nodes))
+    plt.close()
+    return G
+
+def network_equilibrium(G, initial_nbrs, p2, iterations):
+    """
+    Given a graph that has properties of human social networks. Continue to apply processes based on prestige, as well
+    as an analogue to individuals dying, maintaining the networks human features.
+
+    Parameters
+    ----------
+    G : Graph
+        Inputted graph of already desired parameters
+    p : float
+        Probability of a node losing most of its edges at a given iteration
+    iterations : int
+        Number of iterations to apply equilibrium algorithm
+
+    Notes
+    -----
+    The algorithm works by taking a graph and at each iteration adding an edge between nodes based on prestige
+    mechanics. At every iteration there is also a chance that one node gets all but its initial four edges (to its left,
+    right, up, and down) removed.
+    """
+    nodes = list(G.nodes)
+
+    percent_cut = []
+    tot_edges = []
+    odds_on_cuts = []
+
+    i_vals = []
+    geos = []
+    count_add_e = 0
+    count_remove_n = 0
+    clustering = []
+
+    prev_geo = None
+    movement_avg = []
+
+    for i in range(iterations):
+        count_add_e += 1
+        if (i % 500) == 0:
+            print(i)
+            i_vals.append(i)
+            geo = nx.average_shortest_path_length(G)
+            geos.append(geo)
+            clust = nx.average_clustering(G)
+            clustering.append(clust)
+            if prev_geo:
+                # if geo <= prev_geo:
+                #     drops.append(prev_geo - geo)
+                # else:
+                #     rises.append(geo - prev_geo)
+                #     num_rises += 1
+                movement_avg.append(geo - prev_geo)
+            prev_geo = geo
+
+        # Select random person
+        n = random.choice(nodes)
+        odds = []
+        centrality = nx.eigenvector_centrality_numpy(G)
+        nbrs = [nbr for nbr in G[n]]
+        nbrs.append(n)
+
+        for optn in nodes:
+            if optn in nbrs:
+                odds.append(0)
+            else:
+                dist = nx.shortest_path_length(G, n, optn)
+                # Set the odds of being connected to based on eigenvector centrality of the option and its
+                # distance from n
+                w = centrality[optn] * math.exp(-2*dist)
+                odds.append(w)
+
+        # Select at random a new connection for n from the list of options given the assigned odds
+        a = random.choices(nodes, weights=odds, k=1)[0]
+        G.add_edge(n, a)
+
+        if random.random() < p2:
+            count_remove_n += 1
+            rmv = random.choice(nodes)
+            nbrs = [nbr for nbr in G[rmv]]
+            num_nbrs = len(nbrs)
+            to_add = []
+
+            for nbr in nbrs:
+                # if nbr in initial_nbrs[rmv]:
+                #     to_add.append(nbr)
+                # else:
+                mutuals = list(nx.common_neighbors(G, rmv, nbr))
+                odd = ((len(mutuals) + 1) / num_nbrs)
+                if random.random() < odd:
+                    to_add.append(nbr)
+                    odds_on_cuts.append(odd)
+
+            G.remove_node(rmv)
+            G.add_node(rmv)
+
+            percent_cut.append((num_nbrs - len(to_add))/num_nbrs)
+            tot_edges.append(num_nbrs)
+
+            for choice in to_add:
+                G.add_edge(rmv, choice)
+
+            while nx.is_connected(G) == False:
+                smallest_chunk = None
+                smallest_value = None
+                for chunk in list(nx.connected_components(G)):
+                    if smallest_value == None or len(chunk) < smallest_value:
+                        smallest_value = len(chunk)
+                        smallest_chunk = chunk
+                el = random.choice(list(smallest_chunk))
+                el_nbrs = [nbr for nbr in G[el]]
+                unconnected_original = []
+                for or_nbr in initial_nbrs[el]:
+                    if or_nbr not in el_nbrs:
+                        unconnected_original.append(or_nbr)
+                if unconnected_original != []:
+                    next = random.choice(unconnected_original)
+                    G.add_edge(el, next)
+                    count_add_e += 1
+
+                # places_to_connect = []
+                # for chunk in list(nx.connected_components(G)):
+                #     el = random.choice(list(chunk))
+                #     places_to_connect.append(el)
+                # edges = itertools.combinations(places_to_connect, 2)
+                # G.add_edges_from(edges)
+
+    i_vals.append(iterations)
+    geos.append(nx.average_shortest_path_length(G))
+    clustering.append(nx.average_clustering(G))
+
+    cuts = int(round(stats.mean(percent_cut), 2) * 100)
+    num_nodes = int(math.sqrt(G.number_of_nodes()))
+    ratio = round((count_add_e / count_remove_n), 2)
+    # rise_avg = round(stats.mean(rises), 2)
+    # drop_avg = round(stats.mean(drops), 2)
+    movement = round(stats.mean(movement_avg), 2)
+    movement_skip_five = round(stats.mean(movement_avg[5:]), 2)
+    geo_avg = round(stats.mean(geos), 2)
+    geo_avg_skip_five = round(stats.mean(geos[5:]), 2)
+    clustering_avg = round(stats.mean(clustering), 2)
+    clustering_avg_skip_five = round(stats.mean(clustering[5:]), 2)
+
+    # print("Inputted Geodesic: {}; Outputted Geodesic: {}".format(initial_geodesic, final_geodesic))
+    # print("Geodesic Difference: {}".format(final_geodesic - initial_geodesic))
+    # print("Inputted Clustering: {}; Outputted Clustering: {}".format(initial_clustering, final_clustering))
+    # print("Clustering Difference: {}".format(final_clustering - initial_clustering))
+    print("Average clustering coefficient: {}".format(clustering_avg))
+    print("Average clustering coefficient ignoring first 5 data points: {}".format(clustering_avg_skip_five))
+    print("Removed on average {}% of edges".format(cuts))
+    # print("Started with {} edges, added {} edges, removed {} nodes".format(num_edges0, count_add_e, count_remove_n))
+    print("Removed 1 node for every {} edges added".format(ratio))
+    print("On average geodesic moves by {}".format(movement))
+    print("If we ignore the first 5 data point, on average geodesic moves by {}".format(movement_skip_five))
+    print("Average geodesic: {}".format(geo_avg))
+    print("Average geodesic ignoring first 5 data points: {}".format(geo_avg_skip_five))
+
+    plt.scatter(i_vals, geos, s=10)
+    plt.title("Geodesic Equilibrium")
+    plt.xlabel("# of Iterations")
+    plt.ylabel("Average Geodesic")
+    plt.axhline(3.4, c='black', lw=1)
+    plt.savefig(r'C:\Users\Eric\Desktop\Equilibrium Graphs\Important\Geo {} iterations with p of {} {}x{}.png'.format(iterations, p2, num_nodes, num_nodes))
+    plt.close()
+
+    plt.scatter(i_vals, clustering, s=10)
+    plt.title("Clustering Equilibrium")
+    plt.xlabel("# of Iterations")
+    plt.ylabel("Clustering Coefficient")
+    plt.yticks([0, 0.2, 0.4, 0.6, 0.8, 1])
+    plt.axhline(0.1, c='black', lw=1)
+    plt.savefig(r'C:\Users\Eric\Desktop\Equilibrium Graphs\Important\Clust {} iterations with p of {} {}x{}.png'.format(iterations, p2, num_nodes, num_nodes))
+    plt.close()
+    return G
+
+def network_equilibrium_iterations(G, initial_nbrs, d, p, iterations):
+    """
+    Given a graph that has properties of human social networks. Continue to apply processes based on prestige, as well
+    as an analogue to individuals dying, maintaining the networks human features.
+
+    Parameters
+    ----------
+    G : Graph
+        Inputted graph of already desired parameters
+    p : float
+        Probability of a node losing most of its edges at a given iteration
+    iterations : int
+        Number of iterations to apply equilibrium algorithm
+
+    Notes
+    -----
+    The algorithm works by taking a graph and at each iteration adding an edge between nodes based on prestige
+    mechanics. At every iteration there is also a chance that one node gets all but its initial four edges (to its left,
+    right, up, and down) removed.
+    """
+    nodes = list(G.nodes)
+
+    # Necessary for graphing change in clustering and geodesic
+    i_vals = []
+    geos = []
+    clustering = []
+
+    # Used for gathering info on behaviour of removal phase
+    count_add_e = 0
+    count_remove_n = 0
+    count_remove_e = 0
+    count_keep_e = 0
+    degrees = []
+
+    # Used to measure whether the network is in equilibrium
+    prev_geo = None
+    movement_avg = []
+
+    for i in range(iterations):
+        count_add_e += 1
+        if (i % 500) == 0:
+            # Track stats about the network every 500 iterations
+            print(i)
+            i_vals.append(i)
+            geo = nx.average_shortest_path_length(G)
+            geos.append(geo)
+            clust = nx.average_clustering(G)
+            clustering.append(clust)
+            if prev_geo:
+                movement_avg.append(geo - prev_geo)
+            prev_geo = geo
+            total_degs = [G.degree(n) for n in nodes]
+            degrees.append(stats.mean(total_degs))
+
+        # Select random person
+        n = random.choice(nodes)
+        odds = []
+        centrality = nx.eigenvector_centrality_numpy(G)
+        nbrs = [nbr for nbr in G[n]]
+        nbrs.append(n)
+
+        for optn in nodes:
+            if optn in nbrs:
+                odds.append(0)
+            else:
+                dist = nx.shortest_path_length(G, n, optn)
+                # Set the odds of being connected to based on eigenvector centrality of the option and its
+                # distance from n
+                w = centrality[optn] * math.exp(-d*dist)
+                odds.append(w)
+
+        # Select at random a new connection for n from the list of options given the assigned odds
+        a = random.choices(nodes, weights=odds, k=1)[0]
+        G.add_edge(n, a)
+
+        # Removal only has a p2 probability of occurring
+        if random.random() < p:
+            count_remove_n += 1
+            # Select node for removal
+            rmv = random.choice(nodes)
+            # List all neighbours of the node being removed
+            nbrs = [nbr for nbr in G[rmv]]
+            num_nbrs = len(nbrs)
+            to_add = []
+
+            for nbr in nbrs:
+                # The 4 initial neighbours always stay connected
+                if nbr in initial_nbrs[rmv]:
+                    to_add.append(nbr)
+                    count_keep_e += 1
+                else:
+                    # Every other connection is given a probability of maintaining their connection
+                    mutuals = list(nx.common_neighbors(G, rmv, nbr))
+                    odd = ((len(mutuals) + 1) / num_nbrs)
+                    if random.random() < odd:
+                        to_add.append(nbr)
+                        count_keep_e += 1
+                    else:
+                        count_remove_e += 1
+
+            # Update the connections
+            G.remove_node(rmv)
+            G.add_node(rmv)
+            for choice in to_add:
+                G.add_edge(rmv, choice)
+
+    # Track final statistics
+    i_vals.append(iterations)
+    geo = nx.average_shortest_path_length(G)
+    geos.append(geo)
+    clust = nx.average_clustering(G)
+    clustering.append(clust)
+    if prev_geo:
+        movement_avg.append(geo - prev_geo)
+    total_degs = [G.degree(n) for n in nodes]
+    degrees.append(stats.mean(total_degs))
+
+    # Count averages throughout the life of the network
+    cuts = int(round(count_remove_e / (count_remove_e + count_keep_e), 2) * 100)
+    num_nodes = int(math.sqrt(G.number_of_nodes()))
+    node_ratio = round((count_add_e / count_remove_n), 2)
+    edge_ratio = round((count_add_e / count_remove_e), 2)
+    movement_skip_five = round(stats.mean(movement_avg[5:]), 2)
+    movement = round(stats.mean(movement_avg), 2)
+    geo_avg = round(stats.mean(geos), 2)
+    geo_avg_skip_five = round(stats.mean(geos[5:]), 2)
+    clustering_avg = round(stats.mean(clustering), 2)
+    clustering_avg_skip_five = round(stats.mean(clustering[5:]), 2)
+    degree_avg = round(stats.mean(degrees), 2)
+    degree_avg_skip_five = round(stats.mean(degrees[5:]), 2)
+    avg_num_removed = round((count_remove_e / count_remove_n), 2)
+    avg_num_maintained = round((count_keep_e / count_remove_n), 2)
+
+    print("Average clustering coefficient: {}".format(clustering_avg))
+    print("Average clustering coefficient ignoring first 5 data points: {}".format(clustering_avg_skip_five))
+    print("Average degree: {}".format(degree_avg))
+    print("Average degree ignoring first 5 data points: {}".format(degree_avg_skip_five))
+    print("Removed on average {}% of edges".format(cuts))
+    print("Removed 1 node for every {} edges added".format(node_ratio))
+    print("Removed 1 edge for every {} edges added".format(edge_ratio))
+    print("On average remove {} edges when a node is removed".format(avg_num_removed))
+    print("On average keep {} edges when a node is removed".format(avg_num_maintained))
+    print("On average geodesic moves by {}".format(movement))
+    print("If we ignore the first 5 data point, on average geodesic moves by {}".format(movement_skip_five))
+    print("Average geodesic: {}".format(geo_avg))
+    print("Average geodesic ignoring first 5 data points: {}".format(geo_avg_skip_five))
+
+    # plt.scatter(i_vals, geos, s=10)
+    # plt.title("Geodesic Equilibrium")
+    # plt.xlabel("# of Iterations")
+    # plt.ylabel("Average Geodesic")
+    # plt.axhline(3.4, c='black', lw=1)
+    # plt.savefig(r'C:\Users\Eric\Desktop\Equilibrium Graphs\Important\Dist -{}\Geo {} iterations with p of {} {}x{}.png'.format(d, iterations, p2, num_nodes, num_nodes))
+    # plt.close()
+    #
+    # plt.scatter(i_vals, clustering, s=10)
+    # plt.title("Clustering Equilibrium")
+    # plt.xlabel("# of Iterations")
+    # plt.ylabel("Clustering Coefficient")
+    # plt.yticks([0, 0.2, 0.4, 0.6, 0.8, 1])
+    # plt.axhline(0.1, c='black', lw=1)
+    # plt.savefig(r'C:\Users\Eric\Desktop\Equilibrium Graphs\Important\Dist -{}\Clust {} iterations with p of {} {}x{}.png'.format(d, iterations, p2, num_nodes, num_nodes))
+    # plt.close()
+
     return G
