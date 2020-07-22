@@ -6,7 +6,6 @@ import networkx as nx
 import scipy.stats as stats
 import scipy.optimize as optimize
 import numpy as np
-import powerlaw
 
 def degree_distribution_plot(G):
     """

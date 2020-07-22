@@ -3,8 +3,6 @@
 import networkx as nx
 import random
 import math
-import time
-import itertools
 from network_data import *
 import statistics as stats
 import csv
