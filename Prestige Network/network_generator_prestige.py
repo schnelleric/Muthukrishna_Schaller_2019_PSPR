@@ -38,7 +38,6 @@ def human_social_network_prestige(grid, geodesic):
     r = int(round((grid[0] * grid[1]) / 4))
     nodes = list(G.nodes)
 
-    # Probably already built in
     initial_nbrs = {}
     for n in nodes:
         nbrs = [nbr for nbr in G[n]]
@@ -72,17 +71,21 @@ def human_social_network_prestige(grid, geodesic):
 
 def network_equilibrium(G, initial_nbrs, d, p):
     """
-    Given a graph that has properties of human social networks. Continue to apply processes based on prestige, as well
-    as an analogue to individuals dying, maintaining the networks human features.
+    Returns a network with the same properties as a human social network, namely high clustering, low average shortest
+    distance and a skewed degree distribution. This is achieved by applying an algorithm that makes new connections
+    using prestige and distance. The algorithm includes a birth-death process which prevents the network from reaching
+    completness.
 
     Parameters
     ----------
     G : Graph
         Inputted graph of already desired parameters
+    initial_nbrs: dict
+        Lists the initial neighbours for each node
+    d : float
+        Strength of the distance decay function
     p : float
         Probability of a node losing most of its edges at a given iteration
-    iterations : int
-        Number of iterations to apply equilibrium algorithm
 
     Notes
     -----
@@ -94,28 +97,27 @@ def network_equilibrium(G, initial_nbrs, d, p):
     num_nodes = len(nodes)
 
     # Necessary for graphing change in clustering and geodesic
-    i_vals = []
+    x_vals = []
     geos = []
     clustering = []
+    degrees = []
+    moves_csv = []
+    movement = []
 
     # Used for gathering info on behaviour of removal phase
-    count_add_e = 0
-    count_remove_n = 0
-    count_remove_e = 0
-    count_keep_e = 0
-    degrees = []
+    starting_edges = nx.number_of_edges(G)
+    # count_remove_n = 0
+    # count_remove_e = 0
+    # count_keep_e = 0
     in_a_row = 0
-    count = 0
+    iterations = 0
 
     # Used to measure whether the network is in equilibrium
     prev_geo = nx.average_shortest_path_length(G)
-    movement_avg = []
-    prev_check = prev_geo
 
     while in_a_row < 3:
         for i in range(num_nodes):
-            count += 1
-            count_add_e += 1
+            iterations += 1
 
             # Select random person
             n = random.choice(nodes)
@@ -138,9 +140,10 @@ def network_equilibrium(G, initial_nbrs, d, p):
             a = random.choices(nodes, weights=odds, k=1)[0]
             G.add_edge(n, a)
 
-            # Removal only has a p2 probability of occurring
+            # Removal only has a p probability of occurring
             if random.random() < p:
-                count_remove_n += 1
+                # count_remove_n += 1
+
                 # Select node for removal
                 rmv = random.choice(nodes)
                 # List all neighbours of the node being removed
@@ -152,16 +155,16 @@ def network_equilibrium(G, initial_nbrs, d, p):
                     # The 4 initial neighbours always stay connected
                     if nbr in initial_nbrs[rmv]:
                         to_add.append(nbr)
-                        count_keep_e += 1
+                        # count_keep_e += 1
                     else:
                         # Every other connection is given a probability of maintaining their connection
                         mutuals = list(nx.common_neighbors(G, rmv, nbr))
                         odd = ((len(mutuals) + 1) / num_nbrs)
                         if random.random() < odd:
                             to_add.append(nbr)
-                            count_keep_e += 1
-                        else:
-                            count_remove_e += 1
+                        #     count_keep_e += 1
+                        # else:
+                        #     count_remove_e += 1
 
                 # Update the connections
                 G.remove_node(rmv)
@@ -169,81 +172,79 @@ def network_equilibrium(G, initial_nbrs, d, p):
                 for choice in to_add:
                     G.add_edge(rmv, choice)
 
-        print(count)
-        i_vals.append(count)
+        # Update end of round values
+        x_vals.append(iterations)
         geo = nx.average_shortest_path_length(G)
         geos.append(geo)
         clust = nx.average_clustering(G)
         clustering.append(clust)
         move = geo - prev_geo
-        movement_avg.append(move)
+        movement.append(move)
         prev_geo = geo
         total_degs = [G.degree(n) for n in nodes]
         degrees.append(stats.mean(total_degs))
 
-        # if len(movement_avg) > 4: # In 70k (4) In 56k (5)
-        #     check = stats.mean(movement_avg[4:])
-        # else:
-        #     check = 10
-        check = stats.mean(movement_avg) # This never finished for 30x30
-        # curr = stats.mean(geos)
-        # check = curr - prev_check
-        # prev_check = curr
+        check = stats.mean(movement)
         if abs(check) < 0.001:
             in_a_row += 1
         else:
             in_a_row = 0
-        print(round(check, 4))
-
-    if in_a_row != 3:
-        print("You Failed bud")
+        moves_csv.append(check)
 
     # Count averages throughout the life of the network
-    cuts = int(round(count_remove_e / (count_remove_e + count_keep_e), 2) * 100)
     m = int(math.sqrt(G.number_of_nodes()))
-    node_ratio = round((count_add_e / count_remove_n), 2)
-    edge_ratio = round((count_add_e / count_remove_e), 2)
-    movement_skip_five = round(stats.mean(movement_avg[5:]), 2)
-    movement = round(stats.mean(movement_avg), 2)
-    geo_avg = round(stats.mean(geos), 2)
-    geo_avg_skip_five = round(stats.mean(geos[5:]), 2)
-    clustering_avg = round(stats.mean(clustering), 2)
-    clustering_avg_skip_five = round(stats.mean(clustering[5:]), 2)
-    degree_avg = round(stats.mean(degrees), 2)
-    degree_avg_skip_five = round(stats.mean(degrees[5:]), 2)
-    avg_num_removed = round((count_remove_e / count_remove_n), 2)
-    avg_num_maintained = round((count_keep_e / count_remove_n), 2)
+    degree_avg = stats.mean(degrees)
+    degree_std = stats.stdev(degrees)
+    movement_avg = stats.mean(movement)
+    movement_std = stats.stdev(movement)
+    geo_avg = stats.mean(geos)
+    geo_std = stats.stdev(geos)
+    clustering_avg = stats.mean(clustering)
+    clustering_std = stats.stdev(clustering)
     total_edges = nx.number_of_edges(G)
 
-    with open('network.csv', 'w', newline='') as file:
-        fieldnames = ['size', 'p', 'decay', 'iterations', 'avg_clust', 'avg_clust_skip_5', 'avg_degree',
-                      'avg_degree_skip_5', 'total_edges', 'removed_edges', 'avg_geo', 'avg_geo_skip_5',
-                      'avg_geo_move', 'avg_geo_move_skip_5']
-        writer = csv.DictWriter(file, fieldnames=fieldnames)
+    a, ks_val, ks_p, a1, a2, switch, ks_val2, ks_p2 = ks(G)
 
-        writer.writeheader()
-        writer.writerow({'size': '{0}x{0}'.format(m), 'p': str(p), 'decay': str(d), 'iterations': str(count),
-                         'avg_clust': str(clustering_avg), 'avg_clust_skip_5': str(clustering_avg_skip_five),
-                         'avg_degree': str(degree_avg), 'avg_degree_skip_5': str(degree_avg_skip_five),
-                         'total_edges': str(total_edges), 'removed_edges': str(count_remove_e), 'avg_geo': str(geo_avg),
-                         'avg_geo_skip_5': str(geo_avg_skip_five), 'avg_geo_move': str(movement),
-                         'avg_geo_move_skip_5': str(movement_skip_five)})
+    with open('network data.csv', 'a', newline='') as file:
 
-    # print("Average clustering coefficient: {}".format(clustering_avg))
-    # print("Average clustering coefficient ignoring first 5 data points: {}".format(clustering_avg_skip_five))
-    # print("Average degree: {}".format(degree_avg))
-    # print("Average degree ignoring first 5 data points: {}".format(degree_avg_skip_five))
-    # print("Removed on average {}% of edges".format(cuts))
-    # print("Removed 1 node for every {} edges added".format(node_ratio))
-    # print("Removed 1 edge for every {} edges added".format(edge_ratio))
-    # print("On average remove {} edges when a node is removed".format(avg_num_removed))
-    # print("On average keep {} edges when a node is removed".format(avg_num_maintained))
-    # print("On average geodesic moves by {}".format(movement))
-    # print("If we ignore the first 5 data point, on average geodesic moves by {}".format(movement_skip_five))
-    # print("Average geodesic: {}".format(geo_avg))
-    # print("Average geodesic ignoring first 5 data points: {}".format(geo_avg_skip_five))
+        fields = ['size', 'p', 'decay', 'iterations', 'starting_edges', 'total_edges', 'avg_clust', 'std_clust',
+                  'avg_degree', 'std_degree', 'avg_geo', 'std_geo', 'avg_geo_move', 'std_geo_move',
+                  'alpha', 'KS', 'p_KS', 'alpha1', 'alpha2', 'x_switch', 'KS_double', 'KS_p_double']
+        writer = csv.DictWriter(file, fieldnames=fields)
 
-    # plt.scatter(i_vals, geos, s=10)
+        row = {}
+        row['size'] = '{0}x{0}'.format(m)
+        row['p'] = str(p)
+        row['decay'] = str(d)
+        row['iterations'] = str(iterations)
+        row['starting_edges'] = str(starting_edges)
+        row['total_edges'] = str(total_edges)
+        row['avg_clust'] = str(clustering_avg)
+        row['std_clust'] = str(clustering_std)
+        row['avg_degree'] = str(degree_avg)
+        row['std_degree'] = str(degree_std)
+        row['avg_geo'] = str(geo_avg)
+        row['std_geo'] = str(geo_std)
+        row['avg_geo_move'] = str(movement_avg)
+        row['std_geo_move'] = str(movement_std)
+        row['alpha'] = str(a)
+        row['KS'] = str(ks_val)
+        row['p_KS'] = str(ks_p)
+        row['alpha1'] = str(a1)
+        row['alpha2'] = str(a2)
+        row['x_switch'] = str(switch)
+        row['KS_double'] = str(ks_val2)
+        row['KS_p_double'] = str(ks_p2)
+
+        writer.writerow(row)
+
+    with open('movement.csv', 'a', newline='') as file:
+
+        writer = csv.writer(file)
+        writer.writerow(moves_csv)
+
+
+    # plt.scatter(x_vals, geos, s=10)
     # plt.title("Geodesic Equilibrium")
     # plt.xlabel("# of Iterations")
     # plt.ylabel("Average Geodesic")
@@ -251,7 +252,7 @@ def network_equilibrium(G, initial_nbrs, d, p):
     # plt.savefig(r'C:\Users\Eric\Desktop\Equilibrium Graphs\Important\Dist -{}\Geo equilibrium small with p of {} {}x{}.png'.format(d, p, m, m))
     # plt.close()
     #
-    # plt.scatter(i_vals, clustering, s=10)
+    # plt.scatter(x_vals, clustering, s=10)
     # plt.title("Clustering Equilibrium")
     # plt.xlabel("# of Iterations")
     # plt.ylabel("Clustering Coefficient")
@@ -263,73 +264,22 @@ def network_equilibrium(G, initial_nbrs, d, p):
     return G
 
 if __name__ == '__main__':
-    # Example Networks
-    # G, initial_nbrs_G = human_social_network_prestige((30, 30), 3.4)
-    # G1 = nx.grid_2d_graph(13, 13, True)
-    # G1 = nx.convert_node_labels_to_integers(G1)
-    #
-    # # Probably already built in
-    # initial_nbrs_G1 = {}
-    # for n in list(G1.nodes):
-    #     nbrs = [nbr for nbr in G1[n]]
-    #     initial_nbrs_G1[n] = nbrs
-    #
-    # G1 = network_equilibrium(G1, initial_nbrs_G1, 4, 0.77)
-    # ks(G1)
-    #
-    # G4 = nx.grid_2d_graph(15, 15, True)
-    # G4 = nx.convert_node_labels_to_integers(G4)
-    #
-    # # Probably already built in
-    # initial_nbrs_G4 = {}
-    # for n in list(G4.nodes):
-    #     nbrs = [nbr for nbr in G4[n]]
-    #     initial_nbrs_G4[n] = nbrs
-    #
-    # G4 = network_equilibrium(G4, initial_nbrs_G4, 4, 0.67)
-    # ks(G4)
+    with open('network data.csv', 'w', newline='') as file:
 
-    G5 = nx.grid_2d_graph(30, 30, True)
-    G5 = nx.convert_node_labels_to_integers(G5)
+        fields = ['size', 'p', 'decay', 'iterations', 'starting_edges', 'total_edges', 'avg_clust', 'std_clust',
+                  'avg_degree', 'std_degree', 'avg_geo', 'std_geo', 'avg_geo_move', 'std_geo_move',
+                  'alpha', 'KS', 'p_KS', 'alpha1', 'alpha2', 'x_switch', 'KS_double', 'KS_p_double']
+        writer = csv.DictWriter(file, fieldnames=fields)
+        writer.writeheader()
 
-    # Probably already built in
-    initial_nbrs_G5 = {}
-    for n in list(G5.nodes):
-        nbrs = [nbr for nbr in G5[n]]
-        initial_nbrs_G5[n] = nbrs
+    G1 = nx.grid_2d_graph(16, 16, True)
+    G1 = nx.convert_node_labels_to_integers(G1)
 
-    G5 = network_equilibrium(G5, initial_nbrs_G5, 4, 0.33)
-    ks(G5)
+    initial_nbrs_G1 = {}
+    for n in list(G1.nodes):
+        nbrs = [nbr for nbr in G1[n]]
+        initial_nbrs_G1[n] = nbrs
 
-    #
-    #
-    # G2 = nx.grid_2d_graph(40, 40, True)
-    # G2 = nx.convert_node_labels_to_integers(G2)
-    #
-    # # Probably already built in
-    # initial_nbrs_G2 = {}
-    # for n in list(G2.nodes):
-    #     nbrs = [nbr for nbr in G2[n]]
-    #     initial_nbrs_G2[n] = nbrs
-    #
-    # G2 = network_equilibrium(G2, initial_nbrs_G2, 0.25, 50000)
-
-    # G3 = nx.grid_2d_graph(5, 5, True)
-    # G3 = nx.convert_node_labels_to_integers(G3)
-    #
-    # # Probably already built in
-    # initial_nbrs_G3 = {}
-    # for n in list(G3.nodes):
-    #     nbrs = [nbr for nbr in G3[n]]
-    #     initial_nbrs_G3[n] = nbrs
-    #
-    # G3 = network_equilibrium(G3, initial_nbrs_G3, 1, 50000)
-    # degree_distribution_plot(G3)
-
-    # degree_distribution_plot(G1)
-    # degree_distribution_plot(G4)
-    degree_distribution_plot(G5)
-    # degree_distribution_plot(G2)
-    # degree_distribution_plot(G3)
-
-    plt.show()
+    for i in range(51):
+        G = G1.copy()
+        network_equilibrium(G, initial_nbrs_G1, 4, 0.35 + i/100)

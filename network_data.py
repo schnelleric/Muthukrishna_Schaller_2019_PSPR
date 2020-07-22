@@ -46,25 +46,25 @@ def degree_distribution_plot(G):
 
     plt.show(block=False)
 
-def double_power_pdf(xs, x_min, alpha1, alpha2, cut):
+def double_power_pdf(xs, x_min, alpha1, alpha2, switch):
     vals = []
     for x in xs:
-        if x < cut:
+        if x < switch:
             val = ((alpha1 - 1)/x_min) * ((x / x_min) ** (-alpha1))
         else:
-            val = ((alpha1 - 1)/x_min) * ((cut / x_min)**(-alpha1)) * ((x / cut) ** (-alpha2))
+            val = ((alpha1 - 1)/x_min) * ((switch / x_min)**(-alpha1)) * ((x / switch) ** (-alpha2))
         vals.append(val)
     return vals
 
-def double_power_cdf(xs, x_min, alpha1, alpha2, cut):
+def double_power_cdf(xs, x_min, alpha1, alpha2, switch):
     vals = []
     for x in xs:
-        if x < cut:
+        if x < switch:
             val = ((x_min * (x ** alpha1)) - ((x_min ** alpha1) * x)) / (x_min * (x ** alpha1))
         else:
-            val = ((x_min * (cut ** alpha1)) - ((x_min ** alpha1) * cut)) / (x_min * (cut ** alpha1))
-            val += ((alpha1 - 1) * (x_min ** (alpha1 - 1)) * (cut * (x ** (alpha2)) - ((cut ** alpha2) * x)) *
-                    (cut ** (-alpha1)) * (x ** (-alpha2))) / (alpha2 - 1)
+            val = ((x_min * (switch ** alpha1)) - ((x_min ** alpha1) * switch)) / (x_min * (switch ** alpha1))
+            val += ((alpha1 - 1) * (x_min ** (alpha1 - 1)) * (switch * (x ** (alpha2)) - ((switch ** alpha2) * x)) *
+                    (switch ** (-alpha1)) * (x ** (-alpha2))) / (alpha2 - 1)
         vals.append(val)
     return vals
 
@@ -103,29 +103,31 @@ def ks(G):
     single_cdf = lambda x: ((x_min * (x ** a)) - ((x_min ** a) * x)) / (x_min * (x ** a))
     ks1, p1 = stats.kstest(deg, single_cdf)
 
-    single_pdfi = lambda x, alpha: ((alpha - 1)/x_min) * ((x / x_min) ** (-alpha))
-    ai = optimize.curve_fit(single_pdfi, sort_deg[:-1], sort_cnt[:-1])[0][0]
-    single_cdfi = lambda x: ((x_min * (x ** a)) - ((x_min ** a) * x)) / (x_min * (x ** a))
-    ksi, pi = stats.kstest(sort_deg[:-1], single_cdfi)
+    # single_pdfi = lambda x, alpha: ((alpha - 1)/x_min) * ((x / x_min) ** (-alpha))
+    # ai = optimize.curve_fit(single_pdfi, sort_deg[:-1], sort_cnt[:-1])[0][0]
+    # single_cdfi = lambda x: ((x_min * (x ** a)) - ((x_min ** a) * x)) / (x_min * (x ** a))
+    # ksi, pi = stats.kstest(sort_deg[:-1], single_cdfi)
+    #
+    # single_pdff = lambda x, alpha: ((alpha - 1)/x_min) * ((x / x_min) ** (-alpha))
+    # af = optimize.curve_fit(single_pdff, sort_deg[1:], sort_cnt[1:])[0][0]
+    # single_cdff = lambda x: ((x_min * (x ** a)) - ((x_min ** a) * x)) / (x_min * (x ** a))
+    # ksf, pf = stats.kstest(sort_deg[1:], single_cdff)
 
-    single_pdff = lambda x, alpha: ((alpha - 1)/x_min) * ((x / x_min) ** (-alpha))
-    af = optimize.curve_fit(single_pdff, sort_deg[1:], sort_cnt[1:])[0][0]
-    single_cdff = lambda x: ((x_min * (x ** a)) - ((x_min ** a) * x)) / (x_min * (x ** a))
-    ksf, pf = stats.kstest(sort_deg[1:], single_cdff)
-
-    double_pdf = lambda xs, a1, a2, cut: double_power_pdf(xs, x_min, a1, a2, cut)
-    a1, a2, cut = optimize.curve_fit(double_pdf, deg, cnt_frac, bounds=([-np.inf, -np.inf, x_min], [np.inf, np.inf, np.inf]))[0]
-    double_cdf = lambda xs: double_power_cdf(xs, x_min, a1, a2, cut)
+    double_pdf = lambda xs, a1, a2, switch: double_power_pdf(xs, x_min, a1, a2, switch)
+    a1, a2, switch = optimize.curve_fit(double_pdf, deg, cnt_frac, bounds=([-np.inf, -np.inf, x_min], [np.inf, np.inf, np.inf]))[0]
+    double_cdf = lambda xs: double_power_cdf(xs, x_min, a1, a2, switch)
     ks2, p2 = stats.kstest(deg, double_cdf)
 
-    print("\nKS Test Single Power Law:")
-    print("alpha = " + str(a) + "; KS = " + str(ks1) + "; p = " + str(p1))
-    print("\nKS Test Single Power Law ignore last:")
-    print("alpha = " + str(ai) + "; KS = " + str(ksi) + "; p = " + str(pi))
-    print("\nKS Test Single Power Law ignore first:")
-    print("alpha = " + str(af) + "; KS = " + str(ksf) + "; p = " + str(pf))
-    print("\nKS Test Double Power Law:")
-    print("alpha1 = " + str(a1) + "; alpha2 = " + str(a2) + "; alpha switch at: " + str(cut) + "; KS = " + str(ks2) + "; p = " + str(p2))
+    # print("\nKS Test Single Power Law:")
+    # print("alpha = " + str(a) + "; KS = " + str(ks1) + "; p = " + str(p1))
+    # # print("\nKS Test Single Power Law ignore last:")
+    # # print("alpha = " + str(ai) + "; KS = " + str(ksi) + "; p = " + str(pi))
+    # # print("\nKS Test Single Power Law ignore first:")
+    # # print("alpha = " + str(af) + "; KS = " + str(ksf) + "; p = " + str(pf))
+    # # print("\nKS Test Double Power Law:")
+    # print("alpha1 = " + str(a1) + "; alpha2 = " + str(a2) + "; alpha switch at: " + str(cut) + "; KS = " + str(ks2) + "; p = " + str(p2))
+    #
+    # if (cut - x_min) < 0.1:
+    #     print("\nDouble Power Law acts as a Single Power Law")
 
-    if (cut - x_min) < 0.1:
-        print("\nDouble Power Law acts as a Single Power Law")
+    return (a, ks1, p1, a1, a2, switch, ks2, p2)
