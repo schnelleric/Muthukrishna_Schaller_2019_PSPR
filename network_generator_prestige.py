@@ -6,6 +6,12 @@ import math
 from network_data import *
 import scipy.stats as stats
 import csv
+import argparse
+
+parser = argparse.ArgumentParser(description="Run prestige network generator")
+parser.add_argument('-n', '--size', help='int - network size is nxn', default=15)
+parser.add_argument('-d', '--decay', help='float - distance decay strength', default=4)
+parser.add_argument('-p', '--birth_death_rate', help='int - frequency of birth-death process', default=0.5)
 
 def human_social_network_prestige(grid, geodesic):
     """
@@ -67,7 +73,7 @@ def human_social_network_prestige(grid, geodesic):
 
     return G, initial_nbrs
 
-def network_equilibrium(G, initial_nbrs, d, p):
+def network_equilibrium(n, d, p, graph=False):
     """
     Returns a network with the same properties as a human social network, namely high clustering, low average shortest
     distance and a skewed degree distribution. This is achieved by applying an algorithm that makes new connections
@@ -76,14 +82,14 @@ def network_equilibrium(G, initial_nbrs, d, p):
 
     Parameters
     ----------
-    G : Graph
-        Inputted graph of already desired parameters
-    initial_nbrs: dict
-        Lists the initial neighbours for each node
+    n : int
+        Size of network, where the network has nxn nodes
     d : float
         Strength of the distance decay function
     p : float
         Probability of a node losing most of its edges at a given iteration
+    graph : bool
+        Whether or not the a graph for the geodesics value at each round is printed
 
     Notes
     -----
@@ -91,30 +97,51 @@ def network_equilibrium(G, initial_nbrs, d, p):
     mechanics. At every iteration there is also a chance that one node gets all but its initial four edges (to its left,
     right, up, and down) removed.
     """
+    G = nx.grid_2d_graph(n, n, True)
+    G = nx.convert_node_labels_to_integers(G)
+
+    initial_nbrs = {}
+    for n in list(G.nodes):
+        nbrs = [nbr for nbr in G[n]]
+        initial_nbrs[n] = nbrs
+
     nodes = list(G.nodes)
     num_nodes = len(nodes)
-    m = int(math.sqrt(G.number_of_nodes()))
 
-    with open(r'data\{0}x{0} p={1} d={2}.csv'.format(m, p, d), 'w', newline='') as file:
+    with open(r'data\{0}x{0} p={1} d={2}.csv'.format(n, p, d), 'w', newline='') as file:
 
-        fields = ['iterations', 'edges', 'geodesic', 'clustering', 'movement', 'avg_degree', 'degree_skew']
+        fields = ['iterations', 'edges', 'geodesic', 'clustering', 'movement', 'avg_degree', 'degree_skew',
+                  'alpha', 'KS', 'p_KS', 'alpha1', 'alpha2', 'switch', 'KS_double', 'p_KS_double']
         writer = csv.DictWriter(file, fieldnames=fields)
         writer.writeheader()
 
         start = {}
         start['iterations'] = 0
         start['edges'] = nx.number_of_edges(G)
-        start['geodesic'] = nx.average_shortest_path_length(G)
+        geo = nx.average_shortest_path_length(G)
+        start['geodesic'] = geo
         start['clustering'] = nx.average_clustering(G)
         start['movement'] = 'N/A'
         degrees = [G.degree(n) for n in nodes]
         start['avg_degree'] = np.mean(degrees)
         start['degree_skew'] = stats.skew(degrees)
 
+        alpha, ks, p_ks, alpha1, alpha2, switch, ks2, p_ks2 = ks_test(G)
+        start['alpha'] = alpha
+        start['KS'] = ks
+        start['p_KS'] = p_ks
+        start['alpha1'] = alpha1
+        start['alpha2'] = alpha2
+        start['switch'] = switch
+        start['KS_double'] = ks2
+        start['p_KS_double'] = p_ks2
+
         writer.writerow(start)
 
         # Necessary for graphing change in clustering and geodesic
         movement = []
+        x_vals = [0]
+        geos = [geo]
 
         # Used for gathering info on behaviour of removal phase
         in_a_row = 0
@@ -190,7 +217,20 @@ def network_equilibrium(G, initial_nbrs, d, p):
             end_of_round['avg_degree'] = np.mean(degrees)
             end_of_round['degree_skew'] = stats.skew(degrees)
 
+            alpha, ks, p_ks, alpha1, alpha2, switch, ks2, p_ks2 = ks_test(G)
+            end_of_round['alpha'] = alpha
+            end_of_round['KS'] = ks
+            end_of_round['p_KS'] = p_ks
+            end_of_round['alpha1'] = alpha1
+            end_of_round['alpha2'] = alpha2
+            end_of_round['switch'] = switch
+            end_of_round['KS_double'] = ks2
+            end_of_round['p_KS_double'] = p_ks2
+
             writer.writerow(end_of_round)
+
+            x_vals.append(iterations)
+            geos.append(geo)
 
             movement.append(move)
             check = np.mean(movement)
@@ -199,34 +239,17 @@ def network_equilibrium(G, initial_nbrs, d, p):
             else:
                 in_a_row = 0
 
-    # plt.scatter(x_vals, geos, s=10)
-    # plt.title("Geodesic Equilibrium")
-    # plt.xlabel("# of Iterations")
-    # plt.ylabel("Average Geodesic")
-    # plt.axhline(3.4, c='black', lw=1)
-    # plt.savefig(r'C:\Users\Eric\Desktop\Equilibrium Graphs\Important\Dist -{}\Geo equilibrium small with p of {} {}x{}.png'.format(d, p, m, m))
-    # plt.close()
-    #
-    # plt.scatter(x_vals, clustering, s=10)
-    # plt.title("Clustering Equilibrium")
-    # plt.xlabel("# of Iterations")
-    # plt.ylabel("Clustering Coefficient")
-    # plt.yticks([0, 0.2, 0.4, 0.6, 0.8, 1])
-    # plt.axhline(0.1, c='black', lw=1)
-    # plt.savefig(r'C:\Users\Eric\Desktop\Equilibrium Graphs\Important\Dist -{}\Clust equilibrium small with p of {} {}x{}.png'.format(d, p, m, m))
-    # plt.close()
+    if graph:
+        plt.scatter(x_vals, geos, s=10)
+        plt.title("Geodesic Equilibrium")
+        plt.xlabel("# of Iterations")
+        plt.ylabel("Average Geodesic")
+        plt.axhline(3.4, c='black', lw=1)
+        plt.savefig(r'graphs\{0}x{0} p={1} d={2} geodesic.csv'.format(n, p, d))
+        plt.close()
 
     return G
 
+
 if __name__ == '__main__':
-    G1 = nx.grid_2d_graph(13, 13, True)
-    G1 = nx.convert_node_labels_to_integers(G1)
-
-    initial_nbrs_G1 = {}
-    for n in list(G1.nodes):
-        nbrs = [nbr for nbr in G1[n]]
-        initial_nbrs_G1[n] = nbrs
-
-    for i in range(1):
-        G = G1.copy()
-        network_equilibrium(G, initial_nbrs_G1, 4, 0.75)
+    network_equilibrium(13, 4, 0.75)

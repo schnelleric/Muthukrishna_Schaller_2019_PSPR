@@ -67,7 +67,7 @@ def double_power_cdf(xs, x_min, alpha1, alpha2, switch):
         vals.append(val)
     return vals
 
-def ks(G):
+def ks_test(G):
     """
     Prints the characteristic path length (geodesic) of the inputted network, the clustering coefficient of the inputted
     network, and Kolmogorov-Smirnov test results for the similarity of the degree distribution with a power law
@@ -102,31 +102,9 @@ def ks(G):
     single_cdf = lambda x: ((x_min * (x ** a)) - ((x_min ** a) * x)) / (x_min * (x ** a))
     ks1, p1 = stats.kstest(deg, single_cdf)
 
-    # single_pdfi = lambda x, alpha: ((alpha - 1)/x_min) * ((x / x_min) ** (-alpha))
-    # ai = optimize.curve_fit(single_pdfi, sort_deg[:-1], sort_cnt[:-1])[0][0]
-    # single_cdfi = lambda x: ((x_min * (x ** a)) - ((x_min ** a) * x)) / (x_min * (x ** a))
-    # ksi, pi = stats.kstest(sort_deg[:-1], single_cdfi)
-    #
-    # single_pdff = lambda x, alpha: ((alpha - 1)/x_min) * ((x / x_min) ** (-alpha))
-    # af = optimize.curve_fit(single_pdff, sort_deg[1:], sort_cnt[1:])[0][0]
-    # single_cdff = lambda x: ((x_min * (x ** a)) - ((x_min ** a) * x)) / (x_min * (x ** a))
-    # ksf, pf = stats.kstest(sort_deg[1:], single_cdff)
-
     double_pdf = lambda xs, a1, a2, switch: double_power_pdf(xs, x_min, a1, a2, switch)
     a1, a2, switch = optimize.curve_fit(double_pdf, deg, cnt_frac, bounds=([-np.inf, -np.inf, x_min], [np.inf, np.inf, np.inf]))[0]
     double_cdf = lambda xs: double_power_cdf(xs, x_min, a1, a2, switch)
     ks2, p2 = stats.kstest(deg, double_cdf)
-
-    # print("\nKS Test Single Power Law:")
-    # print("alpha = " + str(a) + "; KS = " + str(ks1) + "; p = " + str(p1))
-    # # print("\nKS Test Single Power Law ignore last:")
-    # # print("alpha = " + str(ai) + "; KS = " + str(ksi) + "; p = " + str(pi))
-    # # print("\nKS Test Single Power Law ignore first:")
-    # # print("alpha = " + str(af) + "; KS = " + str(ksf) + "; p = " + str(pf))
-    # # print("\nKS Test Double Power Law:")
-    # print("alpha1 = " + str(a1) + "; alpha2 = " + str(a2) + "; alpha switch at: " + str(cut) + "; KS = " + str(ks2) + "; p = " + str(p2))
-    #
-    # if (cut - x_min) < 0.1:
-    #     print("\nDouble Power Law acts as a Single Power Law")
 
     return (a, ks1, p1, a1, a2, switch, ks2, p2)
