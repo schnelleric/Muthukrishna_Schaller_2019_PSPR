@@ -101,16 +101,16 @@ def network_equilibrium(n, d, p, graph=False):
     G = nx.convert_node_labels_to_integers(G)
 
     initial_nbrs = {}
-    for n in list(G.nodes):
-        nbrs = [nbr for nbr in G[n]]
-        initial_nbrs[n] = nbrs
+    for node in list(G.nodes):
+        nbrs = [nbr for nbr in G[node]]
+        initial_nbrs[node] = nbrs
 
     nodes = list(G.nodes)
     num_nodes = len(nodes)
 
     with open(r'data\{0}x{0} p={1} d={2}.csv'.format(n, p, d), 'w', newline='') as file:
 
-        fields = ['iterations', 'edges', 'geodesic', 'clustering', 'movement', 'avg_degree', 'degree_skew',
+        fields = ['iterations', 'edges', 'geodesic', 'clustering', 'movement', 'move_avg', 'avg_degree', 'degree_skew',
                   'alpha', 'KS', 'p_KS', 'alpha1', 'alpha2', 'switch', 'KS_double', 'p_KS_double']
         writer = csv.DictWriter(file, fieldnames=fields)
         writer.writeheader()
@@ -122,6 +122,7 @@ def network_equilibrium(n, d, p, graph=False):
         start['geodesic'] = geo
         start['clustering'] = nx.average_clustering(G)
         start['movement'] = 'N/A'
+        start['move_avg'] = 'N/A'
         degrees = [G.degree(n) for n in nodes]
         start['avg_degree'] = np.mean(degrees)
         start['degree_skew'] = stats.skew(degrees)
@@ -155,17 +156,17 @@ def network_equilibrium(n, d, p, graph=False):
                 iterations += 1
 
                 # Select random person
-                n = random.choice(nodes)
+                node = random.choice(nodes)
                 odds = []
                 centrality = nx.eigenvector_centrality_numpy(G)
-                nbrs = [nbr for nbr in G[n]]
-                nbrs.append(n)
+                nbrs = [nbr for nbr in G[node]]
+                nbrs.append(node)
 
                 for optn in nodes:
                     if optn in nbrs:
                         odds.append(0)
                     else:
-                        dist = nx.shortest_path_length(G, n, optn)
+                        dist = nx.shortest_path_length(G, node, optn)
                         # Set the odds of being connected to based on eigenvector centrality of the option and its
                         # distance from n
                         w = centrality[optn] * math.exp(-d*dist)
@@ -173,7 +174,7 @@ def network_equilibrium(n, d, p, graph=False):
 
                 # Select at random a new connection for n from the list of options given the assigned odds
                 a = random.choices(nodes, weights=odds, k=1)[0]
-                G.add_edge(n, a)
+                G.add_edge(node, a)
 
                 # Removal only has a p probability of occurring
                 if random.random() < p:
@@ -213,10 +214,13 @@ def network_equilibrium(n, d, p, graph=False):
             move = geo - prev_geo
             prev_geo = geo
             end_of_round['movement'] = move
-            degrees = [G.degree(n) for n in nodes]
+
+            degrees = [G.degree(node) for node in nodes]
             end_of_round['avg_degree'] = np.mean(degrees)
             end_of_round['degree_skew'] = stats.skew(degrees)
-
+            movement.append(move)
+            check = np.mean(movement)
+            end_of_round['move_avg'] = check
             alpha, ks, p_ks, alpha1, alpha2, switch, ks2, p_ks2 = ks_test(G)
             end_of_round['alpha'] = alpha
             end_of_round['KS'] = ks
@@ -232,8 +236,6 @@ def network_equilibrium(n, d, p, graph=False):
             x_vals.append(iterations)
             geos.append(geo)
 
-            movement.append(move)
-            check = np.mean(movement)
             if abs(check) < 0.001:
                 in_a_row += 1
             else:
@@ -252,4 +254,5 @@ def network_equilibrium(n, d, p, graph=False):
 
 
 if __name__ == '__main__':
-    network_equilibrium(13, 4, 0.75)
+    args = parser.parse_args()
+    G = network_equilibrium(args.size, args.decay, args.birth_death_rate)

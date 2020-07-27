@@ -1,4 +1,5 @@
-from network_generator_prestige import *
+import subprocess
+import shutil
 
 if __name__ == "__main__":
     sizes = [10, 13, 15, 20, 50, 100]
@@ -7,4 +8,13 @@ if __name__ == "__main__":
     for i in range(len(sizes)):
         for d in range(6):
             for j in range(25):
-                network_equilibrium(sizes[i], d, probs[i] + j)
+                args = []
+                args.append("-n {}".format(sizes[i]))
+                args.append("-d {}".format(d))
+                args.append("-p 0.{}".format(probs[i]+j))
+
+                python_file = "network_generator_prestige.py"
+                print("Ran " + ', '.join(args))
+                subprocess.call(["python3", python_file] + args)
+                print("Completed " + ', '.join(args))
+
