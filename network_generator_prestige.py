@@ -140,7 +140,6 @@ def network_equilibrium(n, d, p, graph=False):
         writer.writerow(start)
 
         # Necessary for graphing change in clustering and geodesic
-        movement = []
         x_vals = [0]
         geos = [geo]
 
@@ -150,6 +149,7 @@ def network_equilibrium(n, d, p, graph=False):
 
         # Used to measure whether the network is in equilibrium
         prev_geo = nx.average_shortest_path_length(G)
+        movement = []
 
         while in_a_row < 3:
             for i in range(num_nodes):
@@ -214,13 +214,13 @@ def network_equilibrium(n, d, p, graph=False):
             move = geo - prev_geo
             prev_geo = geo
             end_of_round['movement'] = move
-
             degrees = [G.degree(node) for node in nodes]
             end_of_round['avg_degree'] = np.mean(degrees)
             end_of_round['degree_skew'] = stats.skew(degrees)
             movement.append(move)
             check = np.mean(movement)
             end_of_round['move_avg'] = check
+
             alpha, ks, p_ks, alpha1, alpha2, switch, ks2, p_ks2 = ks_test(G)
             end_of_round['alpha'] = alpha
             end_of_round['KS'] = ks
